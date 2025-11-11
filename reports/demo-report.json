@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-11-11T07:36:52.064562",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1,
+    "duration": 1.2687880992889404,
+    "coverage": 58.717948717948715,
+    "success_rate": 0.0
+  },
+  "status": "passed",
+  "exit_code": 1
+}
