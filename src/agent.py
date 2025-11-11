@@ -10,6 +10,7 @@ from typing import List, Optional, Dict, Any
 from src.config import Config
 from src.analyzer import TestAnalyzer
 from src.utils.reporter import TestReporter
+from src.test_generator import TestCaseGenerator
 
 
 @dataclass
@@ -64,6 +65,10 @@ class TestingAgent:
         self.config = config or Config()
         self.analyzer = TestAnalyzer()
         self.reporter = TestReporter()
+        self.test_generator = TestCaseGenerator(
+            source_dir="src",
+            test_dir=self.config.test_directory
+        )
 
     def run_tests(
         self,
@@ -287,18 +292,160 @@ class TestingAgent:
 
         return result
 
+    def analyze_test_coverage_gaps(self) -> Dict[str, Any]:
+        """Analyze code to find functions missing tests.
+
+        Returns:
+            Coverage gap report
+        """
+        print("Analyzing source code...")
+        self.test_generator.analyze_source_code()
+
+        print("Identifying missing tests...")
+        missing_tests = self.test_generator.identify_missing_tests()
+
+        report = self.test_generator.generate_coverage_report()
+
+        return report
+
+    def generate_test_suggestions(
+        self, save_to_file: bool = True, output_file: str = "test_suggestions.md"
+    ) -> List[Any]:
+        """Generate test case suggestions for untested functions.
+
+        Args:
+            save_to_file: Whether to save suggestions to a file
+            output_file: Path to output file
+
+        Returns:
+            List of test case suggestions
+        """
+        print("Analyzing source code...")
+        self.test_generator.analyze_source_code()
+
+        print("Identifying missing tests...")
+        missing_tests = self.test_generator.identify_missing_tests()
+
+        print(f"Found {len(missing_tests)} functions without tests")
+
+        print("Generating test suggestions...")
+        suggestions = self.test_generator.generate_test_suggestions(missing_tests)
+
+        if save_to_file:
+            print(f"Saving suggestions to {output_file}...")
+            self.test_generator.save_test_suggestions(output_file)
+
+        return suggestions
+
+    def create_test_file_for_module(
+        self, module_name: str, output_path: Optional[str] = None
+    ) -> str:
+        """Create a complete test file for a specific module.
+
+        Args:
+            module_name: Name of the module (e.g., 'src.config')
+            output_path: Path to save the test file. If None, prints to stdout.
+
+        Returns:
+            Generated test file content
+        """
+        self.test_generator.analyze_source_code()
+        missing_tests = self.test_generator.identify_missing_tests()
+
+        # Find functions from the specified module
+        module_functions = [f for f in missing_tests if f.module == module_name]
+
+        if not module_functions:
+            print(f"No untested functions found in {module_name}")
+            return ""
+
+        # Generate suggestions for the module
+        suggestions = self.test_generator.generate_test_suggestions(module_functions)
+
+        # Create test file
+        test_content = self.test_generator.create_test_file(
+            module_functions[0], suggestions
+        )
+
+        if output_path:
+            with open(output_path, "w") as f:
+                f.write(test_content)
+            print(f"Test file created at {output_path}")
+        else:
+            print(test_content)
+
+        return test_content
+
+    def suggest_tests_for_low_coverage(self, threshold: float = 80.0) -> None:
+        """Analyze coverage and suggest tests for modules below threshold.
+
+        Args:
+            threshold: Coverage percentage threshold
+        """
+        print(f"Analyzing test coverage gaps (threshold: {threshold}%)...")
+
+        # Run tests to get current coverage
+        result = self.run_tests(coverage=True)
+
+        print(f"\nCurrent overall coverage: {result.coverage:.1f}%")
+
+        if result.coverage >= threshold:
+            print(f"✓ Coverage meets threshold!")
+            return
+
+        # Analyze what's missing
+        report = self.analyze_test_coverage_gaps()
+
+        print(f"\n📊 Coverage Gap Analysis:")
+        print(f"  Total functions: {report['total_functions']}")
+        print(f"  Tested functions: {report['tested_functions']}")
+        print(f"  Untested functions: {report['untested_functions']}")
+        print(f"  Coverage: {report['coverage_percentage']:.1f}%")
+
+        print(f"\n📋 Missing tests by complexity:")
+        print(f"  Low complexity: {report['missing_by_complexity']['low']}")
+        print(f"  Medium complexity: {report['missing_by_complexity']['medium']}")
+        print(f"  High complexity: {report['missing_by_complexity']['high']}")
+
+        print(f"\n📁 Missing tests by module:")
+        for module, functions in report['missing_by_module'].items():
+            print(f"  {module}: {len(functions)} functions")
+            for func in functions[:3]:  # Show first 3
+                print(f"    - {func}")
+            if len(functions) > 3:
+                print(f"    ... and {len(functions) - 3} more")
+
+        # Generate suggestions
+        print("\n💡 Generating test suggestions...")
+        suggestions = self.generate_test_suggestions()
+        print(f"Generated {len(suggestions)} test suggestions")
+        print("See test_suggestions.md for details")
+
 
 def main() -> int:
     """Main entry point for CLI usage."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Testing Agent - Intelligent test runner")
+    parser = argparse.ArgumentParser(description="Testing Agent - Intelligent test runner and generator")
+
+    # Test execution arguments
     parser.add_argument("--path", help="Path to test directory or file")
     parser.add_argument("--pattern", help="Pattern to match test files")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--parallel", action="store_true", help="Run tests in parallel")
     parser.add_argument("--no-coverage", action="store_true", help="Disable coverage collection")
     parser.add_argument("--config", help="Path to configuration file")
+
+    # Test generation arguments
+    parser.add_argument("--generate-tests", action="store_true",
+                       help="Generate test suggestions for untested code")
+    parser.add_argument("--analyze-gaps", action="store_true",
+                       help="Analyze test coverage gaps")
+    parser.add_argument("--suggest-improvements", action="store_true",
+                       help="Suggest tests for low coverage modules")
+    parser.add_argument("--coverage-threshold", type=float, default=80.0,
+                       help="Coverage threshold for suggestions (default: 80%%)")
+    parser.add_argument("--output", help="Output file for generated tests")
 
     args = parser.parse_args()
 
@@ -314,8 +461,38 @@ def main() -> int:
     if args.parallel:
         config.parallel = True
 
-    # Create agent and run tests
+    # Create agent
     agent = TestingAgent(config)
+
+    # Handle test generation commands
+    if args.generate_tests:
+        print("=" * 70)
+        print("GENERATING TEST SUGGESTIONS")
+        print("=" * 70)
+        suggestions = agent.generate_test_suggestions(
+            save_to_file=True,
+            output_file=args.output or "test_suggestions.md"
+        )
+        print(f"\n✓ Generated {len(suggestions)} test suggestions")
+        return 0
+
+    if args.analyze_gaps:
+        print("=" * 70)
+        print("ANALYZING TEST COVERAGE GAPS")
+        print("=" * 70)
+        report = agent.analyze_test_coverage_gaps()
+        print(f"\n📊 Results:")
+        print(f"  Total functions: {report['total_functions']}")
+        print(f"  Tested: {report['tested_functions']}")
+        print(f"  Untested: {report['untested_functions']}")
+        print(f"  Coverage: {report['coverage_percentage']:.1f}%")
+        return 0
+
+    if args.suggest_improvements:
+        agent.suggest_tests_for_low_coverage(threshold=args.coverage_threshold)
+        return 0
+
+    # Default: Run tests
     result = agent.run_and_report(
         path=args.path,
         pattern=args.pattern,

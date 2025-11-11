@@ -1,14 +1,22 @@
 # Testing Agent
 
-An intelligent testing agent that can automatically run tests, analyze results, and provide detailed feedback.
+An intelligent testing agent that can automatically run tests, analyze results, provide detailed feedback, and **generate new test cases** for untested code.
 
 ## Features
 
+### Test Execution & Analysis
 - **Automatic Test Discovery**: Finds and runs all tests in your project
 - **Intelligent Analysis**: Uses AI to analyze test results and suggest fixes
 - **Detailed Reporting**: Provides comprehensive test reports with statistics
 - **Multiple Framework Support**: Works with pytest, unittest, and more
 - **CI/CD Integration**: Easy integration with continuous integration pipelines
+
+### 🆕 Test Generation (NEW!)
+- **Smart Test Case Generation**: Automatically generates test suggestions for untested code
+- **Coverage Gap Analysis**: Identifies functions and modules missing tests
+- **Multiple Test Types**: Generates basic, edge case, error handling, and parametrized tests
+- **Priority-Based Suggestions**: Ranks tests by importance and complexity
+- **Ready-to-Use Templates**: Creates complete test templates with TODO markers
 
 ## Installation
 
@@ -53,6 +61,21 @@ if results.has_failures():
     print(analysis.suggestions)
 ```
 
+### 🆕 Generating Test Cases
+
+```python
+# Analyze coverage gaps
+report = agent.analyze_test_coverage_gaps()
+print(f"Functions without tests: {report['untested_functions']}")
+
+# Generate test suggestions
+suggestions = agent.generate_test_suggestions()
+print(f"Generated {len(suggestions)} test suggestions")
+
+# Get suggestions for low coverage modules
+agent.suggest_tests_for_low_coverage(threshold=80.0)
+```
+
 ## Configuration
 
 Create a `config.json` file to customize the agent:
@@ -69,7 +92,7 @@ Create a `config.json` file to customize the agent:
 
 ## Command Line Interface
 
-Run tests from the command line:
+### Running Tests
 
 ```bash
 # Run all tests
@@ -81,8 +104,24 @@ python -m src.agent --verbose
 # Run specific test file
 python -m src.agent --path tests/test_example.py
 
-# Generate coverage report
-python -m src.agent --coverage
+# Run tests in parallel
+python -m src.agent --parallel
+```
+
+### 🆕 Generating Tests
+
+```bash
+# Generate test suggestions for untested code
+python -m src.agent --generate-tests
+
+# Analyze coverage gaps
+python -m src.agent --analyze-gaps
+
+# Get suggestions for improving coverage
+python -m src.agent --suggest-improvements --coverage-threshold 80
+
+# Save suggestions to custom file
+python -m src.agent --generate-tests --output my_tests.md
 ```
 
 ## Examples
@@ -90,8 +129,11 @@ python -m src.agent --coverage
 Check the `examples/` directory for more usage examples:
 
 - `example_basic.py` - Basic test execution
-- `example_analysis.py` - Analyzing test results
-- `example_integration.py` - CI/CD integration
+- `example_custom_config.py` - Custom configuration
+- `example_ci_integration.py` - CI/CD integration
+- `example_test_generation.py` - 🆕 Test case generation
+- `demo.py` - Interactive demonstration
+- `demo_test_generation.py` - 🆕 Test generation demo
 
 ## Development
 
@@ -121,15 +163,21 @@ Testing-Agents/
 │   ├── agent.py          # Main testing agent
 │   ├── config.py         # Configuration management
 │   ├── analyzer.py       # Test result analyzer
+│   ├── test_generator.py # 🆕 Test case generator
 │   └── utils/
 │       ├── reporter.py   # Report generation
 │       └── helpers.py    # Utility functions
 ├── tests/
 │   ├── test_agent.py
 │   ├── test_analyzer.py
-│   └── test_utils.py
+│   └── test_config.py
 ├── examples/
-│   └── example_basic.py
+│   ├── example_basic.py
+│   ├── example_custom_config.py
+│   ├── example_ci_integration.py
+│   └── example_test_generation.py  # 🆕
+├── demo.py               # Interactive demo
+├── demo_test_generation.py  # 🆕 Test generation demo
 └── requirements.txt
 ```
 
