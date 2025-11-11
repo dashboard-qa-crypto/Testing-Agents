@@ -1,0 +1,87 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.0, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /home/user/Testing-Agents
+configfile: pyproject.toml
+plugins: cov-7.0.0, anyio-4.11.0, xdist-3.8.0
+collecting ... collected 36 items
+
+tests/test_agent.py::TestTestingAgent::test_agent_initialization PASSED  [  2%]
+tests/test_agent.py::TestTestingAgent::test_agent_with_custom_config PASSED [  5%]
+tests/test_agent.py::TestTestingAgent::test_build_command_pytest PASSED  [  8%]
+tests/test_agent.py::TestTestingAgent::test_build_command_with_parallel PASSED [ 11%]
+tests/test_agent.py::TestTestingAgent::test_build_command_with_markers PASSED [ 13%]
+tests/test_agent.py::TestTestingAgent::test_run_tests_success PASSED     [ 16%]
+tests/test_agent.py::TestTestingAgent::test_run_tests_with_failures PASSED [ 19%]
+tests/test_agent.py::TestTestingAgent::test_parse_results_with_passed_tests PASSED [ 22%]
+tests/test_agent.py::TestTestingAgent::test_parse_results_with_mixed_outcomes FAILED [ 25%]
+tests/test_agent.py::TestTestResult::test_result_initialization PASSED   [ 27%]
+tests/test_agent.py::TestTestResult::test_has_failures_true PASSED       [ 30%]
+tests/test_agent.py::TestTestResult::test_has_failures_false PASSED      [ 33%]
+tests/test_agent.py::TestTestResult::test_success_rate_100_percent PASSED [ 36%]
+tests/test_agent.py::TestTestResult::test_success_rate_50_percent PASSED [ 38%]
+tests/test_agent.py::TestTestResult::test_success_rate_zero_tests PASSED [ 41%]
+tests/test_agent.py::TestTestResult::test_failures_list_initialized PASSED [ 44%]
+tests/test_analyzer.py::TestTestAnalyzer::test_analyzer_initialization PASSED [ 47%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_summary_no_tests PASSED [ 50%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_summary_all_passed PASSED [ 52%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_summary_with_failures PASSED [ 55%]
+tests/test_analyzer.py::TestTestAnalyzer::test_categorize_errors_import_error PASSED [ 58%]
+tests/test_analyzer.py::TestTestAnalyzer::test_categorize_errors_assertion_error PASSED [ 61%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_suggestions_import_error PASSED [ 63%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_suggestions_all_passed PASSED [ 66%]
+tests/test_analyzer.py::TestTestAnalyzer::test_generate_suggestions_low_coverage PASSED [ 69%]
+tests/test_analyzer.py::TestTestAnalyzer::test_analyze_coverage_excellent PASSED [ 72%]
+tests/test_analyzer.py::TestTestAnalyzer::test_analyze_coverage_good PASSED [ 75%]
+tests/test_analyzer.py::TestTestAnalyzer::test_analyze_coverage_low PASSED [ 77%]
+tests/test_analyzer.py::TestTestAnalyzer::test_full_analysis PASSED      [ 80%]
+tests/test_config.py::TestConfig::test_default_config PASSED             [ 83%]
+tests/test_config.py::TestConfig::test_custom_config PASSED              [ 86%]
+tests/test_config.py::TestConfig::test_config_to_dict PASSED             [ 88%]
+tests/test_config.py::TestConfig::test_config_save_and_load PASSED       [ 91%]
+tests/test_config.py::TestConfig::test_config_from_nonexistent_file PASSED [ 94%]
+tests/test_config.py::TestConfig::test_config_from_env PASSED            [ 97%]
+tests/test_config.py::TestConfig::test_config_save_creates_directory PASSED [100%]
+
+=================================== FAILURES ===================================
+___________ TestTestingAgent.test_parse_results_with_mixed_outcomes ____________
+tests/test_agent.py:122: in test_parse_results_with_mixed_outcomes
+    assert result.passed == 5
+E   AssertionError: assert 0 == 5
+E    +  where 0 = TestResult(passed=0, failed=0, skipped=1, errors=0, total=1, duration=3.0, coverage=58.717948717948715, exit_code=1, stdout='5 passed, 2 failed, 1 skipped in 3.0s', stderr='', failures=[]).passed
+=============================== warnings summary ===============================
+src/agent.py:55
+  /home/user/Testing-Agents/src/agent.py:55: PytestCollectionWarning: cannot collect test class 'TestingAgent' because it has a __init__ constructor (from: tests/test_agent.py)
+    class TestingAgent:
+
+src/agent.py:15
+  /home/user/Testing-Agents/src/agent.py:15: PytestCollectionWarning: cannot collect test class 'TestResult' because it has a __init__ constructor (from: tests/test_agent.py)
+    @dataclass
+
+src/analyzer.py:10
+  /home/user/Testing-Agents/src/analyzer.py:10: PytestCollectionWarning: cannot collect test class 'TestAnalyzer' because it has a __init__ constructor (from: tests/test_analyzer.py)
+    class TestAnalyzer:
+
+src/agent.py:15
+  /home/user/Testing-Agents/src/agent.py:15: PytestCollectionWarning: cannot collect test class 'TestResult' because it has a __init__ constructor (from: tests/test_analyzer.py)
+    @dataclass
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.11.14-final-0 _______________
+
+Name                    Stmts   Miss  Cover   Missing
+-----------------------------------------------------
+src/__init__.py             5      0   100%
+src/agent.py              138     45    67%   92, 103-104, 154, 169-176, 213, 241, 253, 273-288, 293-325, 329
+src/analyzer.py            74     10    86%   66, 68, 116, 122, 128, 134, 140, 156, 204-205
+src/config.py              36      0   100%
+src/utils/__init__.py       3      0   100%
+src/utils/helpers.py       64     55    14%   16-27, 40-56, 68-91, 103-116, 130-139, 152-161, 174-187
+src/utils/reporter.py      70     51    27%   15-16, 36-43, 54-95, 106-122, 133-247, 259-271, 282-287, 297-302
+-----------------------------------------------------
+TOTAL                     390    161    59%
+=========================== short test summary info ============================
+FAILED tests/test_agent.py::TestTestingAgent::test_parse_results_with_mixed_outcomes - AssertionError: assert 0 == 5
+ +  where 0 = TestResult(passed=0, failed=0, skipped=1, errors=0, total=1, duration=3.0, coverage=58.717948717948715, exit_code=1, stdout='5 passed, 2 failed, 1 skipped in 3.0s', stderr='', failures=[]).passed
+=================== 1 failed, 35 passed, 4 warnings in 0.28s ===================
