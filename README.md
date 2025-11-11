@@ -82,6 +82,30 @@ print(f"Generated {len(suggestions)} test suggestions")
 agent.suggest_tests_for_low_coverage(threshold=80.0)
 ```
 
+## 🔘 Web Interface (NEW!)
+
+Use the beautiful web interface with buttons for easy interaction:
+
+```bash
+# Start the web interface
+python web_interface.py
+```
+
+Then open your browser to `http://localhost:5000`
+
+### Available Buttons
+
+- **🚀 Run Tests** - Execute all tests and see detailed results with coverage
+- **🎓 Learn from Tests** - Analyze existing passing tests to extract patterns
+- **✨ Generate Tests** - Create intelligent test suggestions for untested code
+- **🔍 Analyze Gaps** - Identify functions without test coverage
+
+The web interface provides:
+- Real-time test execution and results
+- Visual statistics and charts
+- Easy access to generated reports
+- One-click operations for all testing agent features
+
 ## Configuration
 
 Create a `config.json` file to customize the agent:
@@ -186,6 +210,9 @@ Testing-Agents/
 │   ├── example_custom_config.py
 │   ├── example_ci_integration.py
 │   └── example_test_generation.py  # 🆕
+├── templates/
+│   └── index.html        # 🔘 Web interface template
+├── web_interface.py      # 🔘 Flask web server
 ├── demo.py               # Interactive demo
 ├── demo_test_generation.py  # 🆕 Test generation demo
 └── requirements.txt
