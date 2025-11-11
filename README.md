@@ -13,6 +13,8 @@ An intelligent testing agent that can automatically run tests, analyze results, 
 
 ### 🆕 Test Generation (NEW!)
 - **Smart Test Case Generation**: Automatically generates test suggestions for untested code
+- **🎓 Learn from Passing Tests**: Analyzes existing tests to learn patterns and styles
+- **Pattern-Based Generation**: Uses learned patterns to create tests matching your style
 - **Coverage Gap Analysis**: Identifies functions and modules missing tests
 - **Multiple Test Types**: Generates basic, edge case, error handling, and parametrized tests
 - **Priority-Based Suggestions**: Ranks tests by importance and complexity
@@ -64,11 +66,15 @@ if results.has_failures():
 ### 🆕 Generating Test Cases
 
 ```python
+# Learn from existing passing tests
+stats = agent.learn_from_passing_tests()
+print(f"Learned from {stats['total_patterns']} existing tests")
+
 # Analyze coverage gaps
 report = agent.analyze_test_coverage_gaps()
 print(f"Functions without tests: {report['untested_functions']}")
 
-# Generate test suggestions
+# Generate test suggestions (automatically learns from existing tests)
 suggestions = agent.generate_test_suggestions()
 print(f"Generated {len(suggestions)} test suggestions")
 
@@ -111,7 +117,10 @@ python -m src.agent --parallel
 ### 🆕 Generating Tests
 
 ```bash
-# Generate test suggestions for untested code
+# Learn patterns from existing passing tests
+python -m src.agent --learn-from-tests
+
+# Generate test suggestions (automatically learns from existing tests)
 python -m src.agent --generate-tests
 
 # Analyze coverage gaps
@@ -132,6 +141,7 @@ Check the `examples/` directory for more usage examples:
 - `example_custom_config.py` - Custom configuration
 - `example_ci_integration.py` - CI/CD integration
 - `example_test_generation.py` - 🆕 Test case generation
+- `example_learn_from_tests.py` - 🎓 Learning from passing tests (NEW!)
 - `demo.py` - Interactive demonstration
 - `demo_test_generation.py` - 🆕 Test generation demo
 

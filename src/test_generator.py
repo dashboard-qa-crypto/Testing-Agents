@@ -37,6 +37,21 @@ class TestCaseSuggestion:
     priority: int  # 1-5, higher is more important
 
 
+@dataclass
+class TestPattern:
+    """Pattern extracted from an existing test."""
+
+    test_name: str
+    function_tested: str
+    test_type: str
+    setup_pattern: str
+    assertion_pattern: str
+    uses_fixtures: bool
+    uses_mocks: bool
+    has_arrange_act_assert: bool
+    code: str
+
+
 class TestCaseGenerator:
     """Generates test cases based on code analysis."""
 
@@ -51,6 +66,8 @@ class TestCaseGenerator:
         self.test_dir = Path(test_dir)
         self.functions: List[FunctionInfo] = []
         self.test_suggestions: List[TestCaseSuggestion] = []
+        self.test_patterns: List[TestPattern] = []
+        self.learned_patterns: Dict[str, List[TestPattern]] = {}
 
     def analyze_source_code(self) -> List[FunctionInfo]:
         """Analyze source code to find functions needing tests.
@@ -213,13 +230,176 @@ class TestCaseGenerator:
 
         return test_names
 
+    def analyze_existing_tests(self) -> List[TestPattern]:
+        """Analyze existing test files to extract patterns.
+
+        Returns:
+            List of TestPattern objects extracted from existing tests
+        """
+        self.test_patterns = []
+
+        if not self.test_dir.exists():
+            return self.test_patterns
+
+        for test_file in self.test_dir.rglob("test_*.py"):
+            try:
+                with open(test_file, "r") as f:
+                    content = f.read()
+                    tree = ast.parse(content)
+
+                # Extract patterns from each test function
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+                        pattern = self._extract_test_pattern(node, content)
+                        if pattern:
+                            self.test_patterns.append(pattern)
+
+            except Exception as e:
+                print(f"Error analyzing {test_file}: {e}")
+
+        # Organize patterns by type
+        for pattern in self.test_patterns:
+            if pattern.test_type not in self.learned_patterns:
+                self.learned_patterns[pattern.test_type] = []
+            self.learned_patterns[pattern.test_type].append(pattern)
+
+        return self.test_patterns
+
+    def _extract_test_pattern(self, node: ast.FunctionDef, source: str) -> Optional[TestPattern]:
+        """Extract pattern from a single test function.
+
+        Args:
+            node: AST node of the test function
+            source: Source code content
+
+        Returns:
+            TestPattern object or None
+        """
+        try:
+            # Get the function source code
+            lines = source.split('\n')
+            start_line = node.lineno - 1
+            end_line = node.end_lineno if hasattr(node, 'end_lineno') else start_line + 20
+
+            # Extract function code
+            func_code = '\n'.join(lines[start_line:end_line])
+
+            # Determine test type
+            test_type = "basic"
+            test_name_lower = node.name.lower()
+            if "edge" in test_name_lower or "empty" in test_name_lower or "zero" in test_name_lower:
+                test_type = "edge_case"
+            elif "error" in test_name_lower or "invalid" in test_name_lower or "raises" in test_name_lower:
+                test_type = "error"
+            elif "parametrize" in func_code:
+                test_type = "parametrized"
+
+            # Detect patterns
+            uses_fixtures = "@pytest.fixture" in func_code or "fixture" in func_code
+            uses_mocks = "mock" in func_code.lower() or "Mock" in func_code or "patch" in func_code
+            has_arrange_act_assert = (
+                "# Arrange" in func_code or "# Act" in func_code or "# Assert" in func_code
+            )
+
+            # Extract setup and assertion patterns
+            setup_pattern = self._extract_setup_pattern(node, func_code)
+            assertion_pattern = self._extract_assertion_pattern(node, func_code)
+
+            # Determine what function is being tested
+            function_tested = node.name.replace("test_", "").split("_")[0]
+
+            return TestPattern(
+                test_name=node.name,
+                function_tested=function_tested,
+                test_type=test_type,
+                setup_pattern=setup_pattern,
+                assertion_pattern=assertion_pattern,
+                uses_fixtures=uses_fixtures,
+                uses_mocks=uses_mocks,
+                has_arrange_act_assert=has_arrange_act_assert,
+                code=func_code
+            )
+
+        except Exception as e:
+            return None
+
+    def _extract_setup_pattern(self, node: ast.FunctionDef, code: str) -> str:
+        """Extract setup pattern from test code."""
+        setup_lines = []
+
+        for child in ast.walk(node):
+            if isinstance(child, ast.Assign):
+                try:
+                    setup_lines.append(ast.unparse(child))
+                except:
+                    pass
+
+        return "\n".join(setup_lines[:3]) if setup_lines else ""
+
+    def _extract_assertion_pattern(self, node: ast.FunctionDef, code: str) -> str:
+        """Extract assertion pattern from test code."""
+        assertions = []
+
+        for child in ast.walk(node):
+            if isinstance(child, ast.Assert):
+                try:
+                    assertions.append(ast.unparse(child))
+                except:
+                    pass
+            elif isinstance(child, ast.Call):
+                if isinstance(child.func, ast.Attribute):
+                    if "assert" in getattr(child.func, 'attr', '').lower():
+                        try:
+                            assertions.append(ast.unparse(child))
+                        except:
+                            pass
+
+        return "\n".join(assertions[:3]) if assertions else ""
+
+    def learn_from_passing_tests(self, test_result: Any) -> Dict[str, Any]:
+        """Learn patterns from passing tests to improve generation.
+
+        Args:
+            test_result: TestResult object from test execution
+
+        Returns:
+            Dictionary with learned patterns summary
+        """
+        print("🎓 Learning from passing tests...")
+
+        # Analyze existing tests
+        patterns = self.analyze_existing_tests()
+
+        if not patterns:
+            return {
+                "patterns_found": 0,
+                "message": "No existing tests found to learn from"
+            }
+
+        # Categorize patterns by type
+        pattern_stats = {
+            "total_patterns": len(patterns),
+            "by_type": {},
+            "uses_fixtures": sum(1 for p in patterns if p.uses_fixtures),
+            "uses_mocks": sum(1 for p in patterns if p.uses_mocks),
+            "has_structure": sum(1 for p in patterns if p.has_arrange_act_assert),
+        }
+
+        for pattern in patterns:
+            pattern_stats["by_type"][pattern.test_type] = \
+                pattern_stats["by_type"].get(pattern.test_type, 0) + 1
+
+        return pattern_stats
+
     def generate_test_suggestions(
-        self, missing_tests: Optional[List[FunctionInfo]] = None
+        self, missing_tests: Optional[List[FunctionInfo]] = None,
+        learn_from_existing: bool = True
     ) -> List[TestCaseSuggestion]:
         """Generate test case suggestions for functions.
 
         Args:
             missing_tests: List of functions without tests. If None, uses all functions.
+            learn_from_existing: Whether to learn patterns from existing tests
 
         Returns:
             List of test case suggestions
@@ -227,10 +407,14 @@ class TestCaseGenerator:
         if missing_tests is None:
             missing_tests = self.identify_missing_tests()
 
+        # Learn from existing tests if requested
+        if learn_from_existing and not self.test_patterns:
+            self.analyze_existing_tests()
+
         self.test_suggestions = []
 
         for func in missing_tests:
-            # Generate basic test
+            # Generate basic test (using learned patterns if available)
             self.test_suggestions.append(self._generate_basic_test(func))
 
             # Generate edge case tests
@@ -246,11 +430,45 @@ class TestCaseGenerator:
         return self.test_suggestions
 
     def _generate_basic_test(self, func: FunctionInfo) -> TestCaseSuggestion:
-        """Generate a basic test case."""
+        """Generate a basic test case using learned patterns if available."""
         test_name = f"test_{func.name}_basic"
 
-        if func.is_method and func.class_name:
-            template = f'''def {test_name}(self):
+        # Try to find similar pattern from existing tests
+        similar_pattern = self._find_similar_pattern(func, "basic")
+
+        if similar_pattern and similar_pattern.has_arrange_act_assert:
+            # Use the structure from the learned pattern
+            if func.is_method and func.class_name:
+                template = f'''def {test_name}(self):
+    """Test basic functionality of {func.class_name}.{func.name}."""
+    # Arrange (Pattern learned from: {similar_pattern.test_name})
+    obj = {func.class_name}()
+    {self._adapt_setup_pattern(similar_pattern.setup_pattern, func)}
+
+    # Act
+    result = obj.{func.name}({self._generate_sample_args(func.args)})
+
+    # Assert
+    {self._adapt_assertion_pattern(similar_pattern.assertion_pattern)}
+    # TODO: Add specific assertions for {func.name}
+'''
+            else:
+                template = f'''def {test_name}():
+    """Test basic functionality of {func.name}."""
+    # Arrange (Pattern learned from: {similar_pattern.test_name})
+    {self._generate_setup_code(func.args)}
+
+    # Act
+    result = {func.name}({self._generate_sample_args(func.args)})
+
+    # Assert
+    {self._adapt_assertion_pattern(similar_pattern.assertion_pattern)}
+    # TODO: Add specific assertions for {func.name}
+'''
+        else:
+            # Fallback to default template
+            if func.is_method and func.class_name:
+                template = f'''def {test_name}(self):
     """Test basic functionality of {func.class_name}.{func.name}."""
     # Arrange
     obj = {func.class_name}()
@@ -262,8 +480,8 @@ class TestCaseGenerator:
     assert result is not None
     # TODO: Add specific assertions
 '''
-        else:
-            template = f'''def {test_name}():
+            else:
+                template = f'''def {test_name}():
     """Test basic functionality of {func.name}."""
     # Arrange
     {self._generate_setup_code(func.args)}
@@ -280,7 +498,8 @@ class TestCaseGenerator:
             function_name=func.name,
             test_name=test_name,
             test_type="basic",
-            description=f"Basic functionality test for {func.name}",
+            description=f"Basic functionality test for {func.name} " +
+                       (f"(learned from {similar_pattern.test_name})" if similar_pattern else ""),
             template=template,
             priority=5,
         )
@@ -367,6 +586,74 @@ def {test_name}({args_str}, expected):
             template=template,
             priority=4,
         )
+
+    def _find_similar_pattern(self, func: FunctionInfo, test_type: str) -> Optional[TestPattern]:
+        """Find a similar test pattern from learned patterns.
+
+        Args:
+            func: Function to find pattern for
+            test_type: Type of test (basic, edge_case, error, parametrized)
+
+        Returns:
+            Similar TestPattern or None
+        """
+        if test_type not in self.learned_patterns:
+            return None
+
+        patterns = self.learned_patterns[test_type]
+        if not patterns:
+            return None
+
+        # Prefer patterns with good structure
+        structured_patterns = [p for p in patterns if p.has_arrange_act_assert]
+        if structured_patterns:
+            return structured_patterns[0]
+
+        return patterns[0] if patterns else None
+
+    def _adapt_setup_pattern(self, setup_pattern: str, func: FunctionInfo) -> str:
+        """Adapt a learned setup pattern for a new function.
+
+        Args:
+            setup_pattern: Original setup pattern
+            func: Function to adapt for
+
+        Returns:
+            Adapted setup code
+        """
+        if not setup_pattern:
+            return ""
+
+        # Keep the structure but add TODO comments
+        lines = setup_pattern.split('\n')
+        adapted = []
+        for line in lines[:2]:  # Limit to first 2 setup lines
+            if line.strip():
+                adapted.append(f"{line}  # TODO: Adapt for {func.name}")
+
+        return '\n    '.join(adapted) if adapted else ""
+
+    def _adapt_assertion_pattern(self, assertion_pattern: str) -> str:
+        """Adapt a learned assertion pattern for a new function.
+
+        Args:
+            assertion_pattern: Original assertion pattern
+
+        Returns:
+            Adapted assertion code
+        """
+        if not assertion_pattern:
+            return "assert result is not None"
+
+        # Use the pattern but keep generic
+        lines = assertion_pattern.split('\n')
+        if lines:
+            # Take first assertion as example
+            first_assertion = lines[0].strip()
+            if first_assertion:
+                return first_assertion
+
+        return "assert result is not None"
 
     def _generate_sample_args(self, args: List[str]) -> str:
         """Generate sample argument values."""

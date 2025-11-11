@@ -308,14 +308,66 @@ class TestingAgent:
 
         return report
 
+    def learn_from_passing_tests(self) -> Dict[str, Any]:
+        """Analyze existing passing tests and learn their patterns.
+
+        Returns:
+            Dictionary with learned patterns statistics
+        """
+        print("🎓 Analyzing existing tests to learn patterns...")
+
+        # Analyze existing tests
+        patterns = self.test_generator.analyze_existing_tests()
+
+        if not patterns:
+            print("  • No existing tests found")
+            return {
+                "patterns_found": 0,
+                "message": "No existing tests to learn from"
+            }
+
+        # Analyze patterns
+        stats = {
+            "total_patterns": len(patterns),
+            "by_type": {},
+            "by_structure": {
+                "arrange_act_assert": sum(1 for p in patterns if p.has_arrange_act_assert),
+                "uses_fixtures": sum(1 for p in patterns if p.uses_fixtures),
+                "uses_mocks": sum(1 for p in patterns if p.uses_mocks),
+            },
+            "patterns": []
+        }
+
+        for pattern in patterns:
+            stats["by_type"][pattern.test_type] = \
+                stats["by_type"].get(pattern.test_type, 0) + 1
+
+        # Show some examples
+        for pattern in patterns[:5]:
+            stats["patterns"].append({
+                "name": pattern.test_name,
+                "type": pattern.test_type,
+                "structured": pattern.has_arrange_act_assert
+            })
+
+        print(f"✓ Learned from {len(patterns)} existing tests")
+        print(f"  • By type: {dict(stats['by_type'])}")
+        print(f"  • With Arrange-Act-Assert: {stats['by_structure']['arrange_act_assert']}")
+        print(f"  • Using fixtures: {stats['by_structure']['uses_fixtures']}")
+        print(f"  • Using mocks: {stats['by_structure']['uses_mocks']}")
+
+        return stats
+
     def generate_test_suggestions(
-        self, save_to_file: bool = True, output_file: str = "test_suggestions.md"
+        self, save_to_file: bool = True, output_file: str = "test_suggestions.md",
+        learn_from_existing: bool = True
     ) -> List[Any]:
         """Generate test case suggestions for untested functions.
 
         Args:
             save_to_file: Whether to save suggestions to a file
             output_file: Path to output file
+            learn_from_existing: Whether to learn patterns from existing passing tests
 
         Returns:
             List of test case suggestions
@@ -328,8 +380,25 @@ class TestingAgent:
 
         print(f"Found {len(missing_tests)} functions without tests")
 
+        if learn_from_existing:
+            print("🎓 Learning from existing passing tests...")
+            patterns = self.test_generator.analyze_existing_tests()
+            if patterns:
+                print(f"✓ Learned {len(patterns)} test patterns from existing tests")
+                # Show what was learned
+                by_type = {}
+                for p in patterns:
+                    by_type[p.test_type] = by_type.get(p.test_type, 0) + 1
+                print(f"  • Test patterns by type: {dict(by_type)}")
+                structured = sum(1 for p in patterns if p.has_arrange_act_assert)
+                print(f"  • Tests with Arrange-Act-Assert: {structured}/{len(patterns)}")
+            else:
+                print("  • No existing tests found to learn from")
+
         print("Generating test suggestions...")
-        suggestions = self.test_generator.generate_test_suggestions(missing_tests)
+        suggestions = self.test_generator.generate_test_suggestions(
+            missing_tests, learn_from_existing=False  # Already learned above
+        )
 
         if save_to_file:
             print(f"Saving suggestions to {output_file}...")
@@ -443,6 +512,8 @@ def main() -> int:
                        help="Analyze test coverage gaps")
     parser.add_argument("--suggest-improvements", action="store_true",
                        help="Suggest tests for low coverage modules")
+    parser.add_argument("--learn-from-tests", action="store_true",
+                       help="Learn patterns from existing passing tests")
     parser.add_argument("--coverage-threshold", type=float, default=80.0,
                        help="Coverage threshold for suggestions (default: 80%%)")
     parser.add_argument("--output", help="Output file for generated tests")
@@ -490,6 +561,16 @@ def main() -> int:
 
     if args.suggest_improvements:
         agent.suggest_tests_for_low_coverage(threshold=args.coverage_threshold)
+        return 0
+
+    if args.learn_from_tests:
+        print("=" * 70)
+        print("LEARNING FROM EXISTING TESTS")
+        print("=" * 70)
+        stats = agent.learn_from_passing_tests()
+        print(f"\n✓ Learning complete!")
+        print(f"\nYou can now generate better test suggestions using:")
+        print(f"  python -m src.agent --generate-tests")
         return 0
 
     # Default: Run tests
