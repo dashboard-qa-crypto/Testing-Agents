@@ -1,9 +1,10 @@
 """Test result analyzer with AI-powered suggestions."""
 
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 
-from src.agent import TestResult
+if TYPE_CHECKING:
+    from src.agent import TestResult
 
 
 class TestAnalyzer:
@@ -24,7 +25,7 @@ class TestAnalyzer:
             "permission": r"PermissionError|Permission denied",
         }
 
-    def analyze(self, result: TestResult) -> Dict[str, Any]:
+    def analyze(self, result: "TestResult") -> Dict[str, Any]:
         """Analyze test results and provide suggestions.
 
         Args:
@@ -42,7 +43,7 @@ class TestAnalyzer:
 
         return analysis
 
-    def _generate_summary(self, result: TestResult) -> str:
+    def _generate_summary(self, result: "TestResult") -> str:
         """Generate a summary of the test results.
 
         Args:
@@ -73,7 +74,7 @@ class TestAnalyzer:
 
         return " | ".join(summary_parts)
 
-    def _categorize_errors(self, result: TestResult) -> Dict[str, int]:
+    def _categorize_errors(self, result: "TestResult") -> Dict[str, int]:
         """Categorize errors by type.
 
         Args:
@@ -92,7 +93,7 @@ class TestAnalyzer:
 
         return error_types
 
-    def _generate_suggestions(self, result: TestResult) -> List[str]:
+    def _generate_suggestions(self, result: "TestResult") -> List[str]:
         """Generate suggestions based on test results.
 
         Args:
@@ -170,7 +171,7 @@ class TestAnalyzer:
 
         return suggestions
 
-    def _analyze_coverage(self, result: TestResult) -> Dict[str, Any]:
+    def _analyze_coverage(self, result: "TestResult") -> Dict[str, Any]:
         """Analyze code coverage.
 
         Args:

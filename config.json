@@ -1,0 +1,13 @@
+{
+  "test_framework": "pytest",
+  "test_directory": "tests",
+  "coverage_threshold": 85.0,
+  "verbose": true,
+  "parallel": true,
+  "max_workers": 4,
+  "timeout": 300,
+  "fail_fast": false,
+  "generate_html_report": true,
+  "report_directory": "reports",
+  "extra_args": {}
+}
