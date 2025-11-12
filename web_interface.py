@@ -136,6 +136,97 @@ def get_report(report_type):
         }), 500
 
 
+@app.route('/write-and-run-tests', methods=['POST'])
+def write_and_run_tests():
+    """Generate tests, write them to a file, and run them."""
+    try:
+        # Step 1: Generate test suggestions
+        print("Generating test suggestions...")
+        suggestions = agent.generate_test_suggestions(
+            save_to_file=True,
+            output_file='web_test_suggestions.md',
+            learn_from_existing=True
+        )
+
+        if not suggestions:
+            return jsonify({
+                'success': False,
+                'error': 'No test suggestions generated'
+            }), 400
+
+        # Step 2: Write to test file
+        print("Writing tests to file...")
+        test_file = agent.write_generated_tests_to_file(
+            suggestions,
+            output_file='tests/test_generated.py'
+        )
+
+        # Step 3: Run the generated tests
+        print("Running generated tests...")
+        result = agent.run_generated_tests(test_file)
+
+        return jsonify({
+            'success': True,
+            'suggestions_count': len(suggestions),
+            'tests_written': min(20, len(suggestions)),  # Limit to 20 tests
+            'test_file': test_file,
+            'test_results': {
+                'passed': result.passed,
+                'failed': result.failed,
+                'skipped': result.skipped,
+                'errors': result.errors,
+                'total': result.total,
+                'duration': result.duration,
+                'success_rate': result.success_rate(),
+                'stdout': result.stdout,
+                'stderr': result.stderr
+            },
+            'message': f"Generated {len(suggestions)} suggestions, wrote {min(20, len(suggestions))} tests, and executed them"
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@app.route('/run-generated-tests', methods=['POST'])
+def run_generated_tests():
+    """Run the previously generated test file."""
+    try:
+        test_file = 'tests/test_generated.py'
+
+        if not Path(test_file).exists():
+            return jsonify({
+                'success': False,
+                'error': 'No generated test file found. Please generate tests first.'
+            }), 404
+
+        result = agent.run_generated_tests(test_file)
+
+        return jsonify({
+            'success': True,
+            'test_file': test_file,
+            'passed': result.passed,
+            'failed': result.failed,
+            'skipped': result.skipped,
+            'errors': result.errors,
+            'total': result.total,
+            'duration': result.duration,
+            'success_rate': result.success_rate(),
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'message': f"Executed generated tests: {result.passed}/{result.total} passed"
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/status')
 def status():
     """Get current status of the testing agent."""
@@ -146,6 +237,7 @@ def status():
             'test_directory': agent.config.test_directory,
             'coverage_threshold': agent.config.coverage_threshold,
             'reports_exist': Path('reports').exists(),
+            'generated_tests_exist': Path('tests/test_generated.py').exists(),
             'timestamp': datetime.now().isoformat()
         }
 
@@ -173,6 +265,7 @@ if __name__ == '__main__':
     print("   • Learn from Tests - Analyze existing passing tests")
     print("   • Generate Tests - Create new test suggestions")
     print("   • Analyze Coverage Gaps - Find untested code")
+    print("   • Run Generated Tests - Execute generated test cases")
     print("\n" + "=" * 70 + "\n")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

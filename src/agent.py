@@ -490,6 +490,81 @@ class TestingAgent:
         print(f"Generated {len(suggestions)} test suggestions")
         print("See test_suggestions.md for details")
 
+    def write_generated_tests_to_file(
+        self, suggestions: List[Any], output_file: str = "tests/test_generated.py"
+    ) -> str:
+        """Write generated test suggestions to an actual Python test file.
+
+        Args:
+            suggestions: List of test case suggestions
+            output_file: Path to the output test file
+
+        Returns:
+            Path to the created test file
+        """
+        if not suggestions:
+            raise ValueError("No test suggestions provided")
+
+        # Create test file content with standard imports
+        imports = [
+            "\"\"\"Automatically generated test cases.\"\"\"",
+            "",
+            "import pytest",
+            "from unittest.mock import Mock, patch, MagicMock",
+            "from pathlib import Path",
+            "",
+            "# Import modules being tested",
+            "from src.agent import TestingAgent, TestResult",
+            "from src.analyzer import TestAnalyzer",
+            "from src.config import Config",
+            "from src.test_generator import TestCaseGenerator",
+            "",
+            ""
+        ]
+
+        # Generate test class
+        test_content = "\n".join(imports)
+        test_content += "class TestGeneratedTests:\n"
+        test_content += '    """Automatically generated test cases."""\n\n'
+
+        # Add each test
+        for suggestion in suggestions[:20]:  # Limit to first 20 tests
+            if hasattr(suggestion, 'template'):
+                # Extract the test function from the template
+                template = suggestion.template.strip()
+                if "def test_" in template:
+                    # Indent the code properly for the class
+                    lines = template.split("\n")
+                    indented = "\n".join("    " + line if line.strip() else "" for line in lines)
+                    test_content += indented + "\n\n"
+
+        # Ensure output directory exists
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to file
+        with open(output_path, "w") as f:
+            f.write(test_content)
+
+        print(f"✓ Written {len(suggestions[:20])} tests to {output_file}")
+        return str(output_path)
+
+    def run_generated_tests(self, test_file: str = "tests/test_generated.py") -> TestResult:
+        """Run the generated test file.
+
+        Args:
+            test_file: Path to the generated test file
+
+        Returns:
+            TestResult object containing test execution results
+        """
+        if not Path(test_file).exists():
+            raise FileNotFoundError(f"Test file not found: {test_file}")
+
+        print(f"Running generated tests from {test_file}...")
+        result = self.run_tests(path=test_file)
+        return result
+
 
 def main() -> int:
     """Main entry point for CLI usage."""

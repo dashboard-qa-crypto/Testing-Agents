@@ -119,6 +119,11 @@
             color: white;
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
         .results {
             background: white;
             border-radius: 15px;
@@ -273,6 +278,13 @@
                 <h2>Analyze Gaps</h2>
                 <p>Identify functions without test coverage and prioritize areas that need testing.</p>
                 <button class="btn btn-warning" onclick="analyzeGaps()">Find Coverage Gaps</button>
+            </div>
+
+            <div class="card">
+                <div class="icon">⚡</div>
+                <h2>Run Generated Tests</h2>
+                <p>Generate test cases, write them to a file, and execute them to see results in action.</p>
+                <button class="btn btn-danger" onclick="runGeneratedTests()">Generate & Run Tests</button>
             </div>
         </div>
 
@@ -477,6 +489,70 @@
                         </div>
                     `;
                     showResults('Coverage Gap Analysis', html);
+                } else {
+                    showError(data.error);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function runGeneratedTests() {
+            showLoading();
+            try {
+                const response = await fetch('/write-and-run-tests', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    const results = data.test_results;
+                    const successRate = results.success_rate.toFixed(1);
+
+                    const html = `
+                        <div class="success-message">✅ ${data.message}</div>
+                        <h4>Generated Tests Summary:</h4>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="stat-value">${data.suggestions_count}</div>
+                                <div class="stat-label">Suggestions Generated</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${data.tests_written}</div>
+                                <div class="stat-label">Tests Written</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${results.total}</div>
+                                <div class="stat-label">Tests Executed</div>
+                            </div>
+                        </div>
+                        <h4 style="margin-top: 20px;">Test Execution Results:</h4>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="stat-value">${results.passed}</div>
+                                <div class="stat-label">Passed</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${results.failed}</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${results.skipped}</div>
+                                <div class="stat-label">Skipped</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${successRate}%</div>
+                                <div class="stat-label">Success Rate</div>
+                            </div>
+                        </div>
+                        <div class="output">
+                            <p>📝 Test file created at: <strong>${data.test_file}</strong></p>
+                            <p>• Generated tests were automatically executed</p>
+                            <p>• Tests use patterns learned from existing tests</p>
+                            <br>
+                            <h4>Test Output:</h4>
+                            <pre>${results.stdout}</pre>
+                        </div>
+                    `;
+                    showResults('Generated Tests Execution', html);
                 } else {
                     showError(data.error);
                 }
