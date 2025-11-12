@@ -55,7 +55,7 @@ def run_tests():
 
 @app.route('/run-tests-from-url', methods=['POST'])
 def run_tests_from_url():
-    """Run tests from a URL or repository."""
+    """Run tests from a URL or repository against the current project."""
     try:
         data = request.json
         test_suite_url = data.get('test_suite_url')
@@ -69,16 +69,17 @@ def run_tests_from_url():
             }), 400
 
         # Handle different source types
-        test_path = None
+        test_source_path = None
         cleanup_needed = False
+        temp_test_dir = None
 
         if test_type == 'local':
             # Use local path directly
-            test_path = test_suite_url
-            if not Path(test_path).exists():
+            test_source_path = test_suite_url
+            if not Path(test_source_path).exists():
                 return jsonify({
                     'success': False,
-                    'error': f'Local path not found: {test_path}'
+                    'error': f'Local path not found: {test_source_path}'
                 }), 404
 
         elif test_type in ['github', 'git']:
@@ -98,7 +99,7 @@ def run_tests_from_url():
                         else:
                             git_url = test_suite_url.rstrip('/') + '.git'
 
-                print(f"Cloning repository from {git_url} to {temp_dir}")
+                print(f"Cloning test suite from {git_url} to {temp_dir}")
 
                 # Clone the repository
                 result = subprocess.run(
@@ -114,7 +115,7 @@ def run_tests_from_url():
                         'error': f'Failed to clone repository: {result.stderr}'
                     }), 500
 
-                test_path = temp_dir
+                test_source_path = temp_dir
 
             except subprocess.TimeoutExpired:
                 if cleanup_needed and Path(temp_dir).exists():
@@ -131,10 +132,56 @@ def run_tests_from_url():
                     'error': f'Error cloning repository: {str(e)}'
                 }), 500
 
-        # Run tests from the specified path
+        # Now we have test_source_path pointing to the test suite
+        # Copy those tests to a temporary location in current project to run them
         try:
+            # Create a temporary test directory in the current project
+            project_temp_test_dir = Path('tests_external_temp')
+            project_temp_test_dir.mkdir(exist_ok=True)
+            temp_test_dir = project_temp_test_dir
+
+            # Find test files in the source
+            source_path = Path(test_source_path)
+            test_files = []
+
+            # Look for test files
+            if source_path.is_file():
+                if 'test' in source_path.name:
+                    test_files = [source_path]
+            else:
+                # Search for test directories and files
+                for pattern_to_search in ['**/test*.py', '**/*test.py', '**/tests/**/*.py']:
+                    test_files.extend(source_path.glob(pattern_to_search))
+
+            if not test_files:
+                return jsonify({
+                    'success': False,
+                    'error': 'No test files found in the provided test suite'
+                }), 404
+
+            # Copy test files to temporary directory
+            copied_files = []
+            for test_file in test_files:
+                if test_pattern and not Path(test_file).match(test_pattern):
+                    continue
+
+                # Copy file maintaining structure
+                dest_file = project_temp_test_dir / test_file.name
+                shutil.copy2(test_file, dest_file)
+                copied_files.append(dest_file)
+                print(f"Copied test file: {test_file.name}")
+
+            if not copied_files:
+                return jsonify({
+                    'success': False,
+                    'error': f'No test files matched the pattern: {test_pattern}'
+                }), 404
+
+            print(f"Copied {len(copied_files)} test files to {project_temp_test_dir}")
+
+            # Run tests from the temporary directory in current project context
             result = agent.run_tests(
-                path=test_path,
+                path=str(project_temp_test_dir),
                 pattern=test_pattern
             )
 
@@ -150,19 +197,28 @@ def run_tests_from_url():
                 'success_rate': result.success_rate(),
                 'stdout': result.stdout,
                 'stderr': result.stderr,
-                'failures': result.failures
+                'failures': result.failures,
+                'test_files_count': len(copied_files)
             }
 
             return jsonify(response_data)
 
         finally:
-            # Clean up cloned repository
-            if cleanup_needed and test_path and Path(test_path).exists():
+            # Clean up temporary test directory in current project
+            if temp_test_dir and temp_test_dir.exists():
                 try:
-                    shutil.rmtree(test_path)
-                    print(f"Cleaned up temporary directory: {test_path}")
+                    shutil.rmtree(temp_test_dir)
+                    print(f"Cleaned up temporary test directory: {temp_test_dir}")
                 except Exception as e:
-                    print(f"Warning: Failed to clean up {test_path}: {e}")
+                    print(f"Warning: Failed to clean up {temp_test_dir}: {e}")
+
+            # Clean up cloned repository
+            if cleanup_needed and test_source_path and Path(test_source_path).exists():
+                try:
+                    shutil.rmtree(test_source_path)
+                    print(f"Cleaned up cloned repository: {test_source_path}")
+                except Exception as e:
+                    print(f"Warning: Failed to clean up {test_source_path}: {e}")
 
     except Exception as e:
         import traceback

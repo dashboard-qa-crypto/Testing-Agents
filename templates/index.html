@@ -376,8 +376,8 @@
             <div class="card">
                 <div class="icon">🚀</div>
                 <h2>Run Tests</h2>
-                <p>Execute all tests in your test suite and get detailed results with coverage analysis.</p>
-                <button class="btn btn-primary" onclick="showTestSuiteModal()">Run All Tests</button>
+                <p>Run an external test suite against your current project. Provide a URL or path to test files.</p>
+                <button class="btn btn-primary" onclick="showTestSuiteModal()">Run External Tests</button>
             </div>
 
             <div class="card">
@@ -420,7 +420,7 @@
                 <span class="close-modal" onclick="closeTestSuiteModal()">&times;</span>
                 <div class="modal-header">
                     <h2>🚀 Run Test Suite</h2>
-                    <p>Provide the URL or path to your test suite</p>
+                    <p>Provide a URL or path to an external test suite. The tests will be executed against YOUR current project.</p>
                 </div>
                 <form id="testSuiteForm" onsubmit="submitTestSuite(event)">
                     <div class="form-group">
@@ -515,15 +515,21 @@
                 if (data.success) {
                     const successRate = data.success_rate.toFixed(1);
                     const html = `
-                        <div class="success-message">✅ Tests completed successfully!</div>
+                        <div class="success-message">✅ Tests executed successfully against your project!</div>
                         <h4>Test Suite Information:</h4>
                         <div class="output" style="margin-bottom: 20px;">
                             <p><strong>Source:</strong> ${formData.test_suite_url}</p>
                             <p><strong>Type:</strong> ${formData.test_type}</p>
+                            <p><strong>Test Files Found:</strong> ${data.test_files_count}</p>
                             ${formData.test_pattern ? `<p><strong>Pattern:</strong> ${formData.test_pattern}</p>` : ''}
+                            <p style="margin-top: 10px; font-style: italic; color: #666;">These tests from the external suite were run against your current project codebase.</p>
                         </div>
                         <h4>Test Results:</h4>
                         <div class="stats">
+                            <div class="stat">
+                                <div class="stat-value">${data.test_files_count}</div>
+                                <div class="stat-label">Test Files</div>
+                            </div>
                             <div class="stat">
                                 <div class="stat-value">${data.passed}</div>
                                 <div class="stat-label">Passed</div>
@@ -538,7 +544,7 @@
                             </div>
                             <div class="stat">
                                 <div class="stat-value">${data.total}</div>
-                                <div class="stat-label">Total</div>
+                                <div class="stat-label">Total Tests</div>
                             </div>
                             <div class="stat">
                                 <div class="stat-value">${successRate}%</div>
@@ -550,7 +556,7 @@
                             </div>
                         </div>
                         <div class="output">
-                            <h4>Output:</h4>
+                            <h4>Test Output:</h4>
                             <pre>${data.stdout}</pre>
                         </div>
                     `;

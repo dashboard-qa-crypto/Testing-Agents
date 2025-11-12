@@ -95,28 +95,49 @@ Then open your browser to `http://localhost:5000`
 
 ### Available Buttons
 
-- **🚀 Run Tests** - Execute tests from any source (local, GitHub, or Git URL)
-  - Input a test suite URL or local path
-  - Automatically clones and runs tests from repositories
+- **🚀 Run Tests** - Run external test suites against your current project
+  - Provide a URL or path to an external test suite
+  - Tests are fetched/cloned and executed against YOUR project code
   - Generates comprehensive reports with coverage analysis
+  - Perfect for running compliance tests, security tests, or standard test suites
 - **🎓 Learn from Tests** - Analyze existing passing tests to extract patterns
 - **✨ Generate Tests** - Create intelligent test suggestions for untested code
 - **🔍 Analyze Gaps** - Identify functions without test coverage
 - **⚡ Run Generated Tests** - Generate, write, and execute test cases in one click
 
-### Test Suite Sources Supported
+### How External Test Suite Execution Works
 
-The "Run Tests" button supports multiple sources:
+The "Run Tests" button allows you to test your current project with external test suites:
 
-1. **Local Path**: Run tests from a local directory
-   - Example: `/home/user/my-project/tests`
+**Workflow:**
+1. Provide a URL or path to an external test suite
+2. The system fetches/clones the test files
+3. Test files are copied to a temporary directory in your project
+4. Tests are executed in the context of YOUR current project
+5. Results show how your code performs against the external tests
+6. Automatic cleanup after execution
 
-2. **GitHub Repository**: Automatically clone and run tests from GitHub
-   - Example: `https://github.com/username/repository`
-   - Supports branch URLs: `https://github.com/username/repository/tree/branch-name`
+**Supported Sources:**
 
-3. **Git URL**: Clone from any Git repository
-   - Example: `https://gitlab.com/username/repository.git`
+1. **Local Path**: Use tests from a local directory
+   - Example: `/home/user/external-tests/tests`
+   - Tests will run against your current project
+
+2. **GitHub Repository**: Fetch tests from a GitHub repository
+   - Example: `https://github.com/username/test-suite-repository`
+   - Supports branch URLs: `https://github.com/username/test-suite/tree/branch-name`
+   - Tests from the repo will run against your current project
+
+3. **Git URL**: Clone tests from any Git repository
+   - Example: `https://gitlab.com/username/test-suite.git`
+   - Tests will run against your current project
+
+**Use Cases:**
+- Run industry-standard test suites against your code
+- Validate compliance with external requirements
+- Test against security test suites
+- Run partner/client test suites
+- Execute QA team's test repository
 
 The web interface provides:
 - Real-time test execution and results
