@@ -242,6 +242,127 @@
             font-size: 2em;
             margin-bottom: 10px;
         }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            margin-bottom: 30px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .modal-header p {
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #999;
+            font-size: 0.85em;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 2em;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            line-height: 0.8;
+            transition: color 0.3s ease;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -256,7 +377,7 @@
                 <div class="icon">🚀</div>
                 <h2>Run Tests</h2>
                 <p>Execute all tests in your test suite and get detailed results with coverage analysis.</p>
-                <button class="btn btn-primary" onclick="runTests()">Run All Tests</button>
+                <button class="btn btn-primary" onclick="showTestSuiteModal()">Run All Tests</button>
             </div>
 
             <div class="card">
@@ -292,6 +413,53 @@
             <h3 id="results-title">Results</h3>
             <div id="results-content"></div>
         </div>
+
+        <!-- Modal for Test Suite URL -->
+        <div id="testSuiteModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeTestSuiteModal()">&times;</span>
+                <div class="modal-header">
+                    <h2>🚀 Run Test Suite</h2>
+                    <p>Provide the URL or path to your test suite</p>
+                </div>
+                <form id="testSuiteForm" onsubmit="submitTestSuite(event)">
+                    <div class="form-group">
+                        <label for="testSuiteUrl">Test Suite URL or Path</label>
+                        <input
+                            type="text"
+                            id="testSuiteUrl"
+                            name="testSuiteUrl"
+                            placeholder="https://github.com/user/repo/tests or /path/to/tests"
+                            required
+                        />
+                        <small>Enter a GitHub URL, Git repository URL, or local file path</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="testType">Source Type</label>
+                        <select id="testType" name="testType">
+                            <option value="local">Local Path</option>
+                            <option value="github">GitHub Repository</option>
+                            <option value="git">Git URL</option>
+                        </select>
+                        <small>Select how you want to access the test suite</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="testPattern">Test Pattern (Optional)</label>
+                        <input
+                            type="text"
+                            id="testPattern"
+                            name="testPattern"
+                            placeholder="test_*.py or *_test.py"
+                        />
+                        <small>Pattern to match test files (leave empty for all tests)</small>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeTestSuiteModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Execute Tests</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -310,6 +478,97 @@
 
         function showError(message) {
             showResults('Error', `<div class="error-message">❌ ${message}</div>`);
+        }
+
+        // Modal functions
+        function showTestSuiteModal() {
+            document.getElementById('testSuiteModal').classList.add('show');
+        }
+
+        function closeTestSuiteModal() {
+            document.getElementById('testSuiteModal').classList.remove('show');
+        }
+
+        async function submitTestSuite(event) {
+            event.preventDefault();
+
+            const formData = {
+                test_suite_url: document.getElementById('testSuiteUrl').value,
+                test_type: document.getElementById('testType').value,
+                test_pattern: document.getElementById('testPattern').value || null
+            };
+
+            // Close modal
+            closeTestSuiteModal();
+
+            // Show loading
+            showLoading();
+
+            try {
+                const response = await fetch('/run-tests-from-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const successRate = data.success_rate.toFixed(1);
+                    const html = `
+                        <div class="success-message">✅ Tests completed successfully!</div>
+                        <h4>Test Suite Information:</h4>
+                        <div class="output" style="margin-bottom: 20px;">
+                            <p><strong>Source:</strong> ${formData.test_suite_url}</p>
+                            <p><strong>Type:</strong> ${formData.test_type}</p>
+                            ${formData.test_pattern ? `<p><strong>Pattern:</strong> ${formData.test_pattern}</p>` : ''}
+                        </div>
+                        <h4>Test Results:</h4>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="stat-value">${data.passed}</div>
+                                <div class="stat-label">Passed</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${data.failed}</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${data.skipped}</div>
+                                <div class="stat-label">Skipped</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${data.total}</div>
+                                <div class="stat-label">Total</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${successRate}%</div>
+                                <div class="stat-label">Success Rate</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${data.coverage.toFixed(1)}%</div>
+                                <div class="stat-label">Coverage</div>
+                            </div>
+                        </div>
+                        <div class="output">
+                            <h4>Output:</h4>
+                            <pre>${data.stdout}</pre>
+                        </div>
+                    `;
+                    showResults('Test Execution Results', html);
+                } else {
+                    showError(data.error);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('testSuiteModal');
+            if (event.target == modal) {
+                closeTestSuiteModal();
+            }
         }
 
         async function runTests() {

@@ -8,6 +8,8 @@ from flask import Flask, render_template, jsonify, request, send_file
 import subprocess
 import os
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from datetime import datetime
 from src.agent import TestingAgent
@@ -48,6 +50,126 @@ def run_tests():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/run-tests-from-url', methods=['POST'])
+def run_tests_from_url():
+    """Run tests from a URL or repository."""
+    try:
+        data = request.json
+        test_suite_url = data.get('test_suite_url')
+        test_type = data.get('test_type', 'local')
+        test_pattern = data.get('test_pattern')
+
+        if not test_suite_url:
+            return jsonify({
+                'success': False,
+                'error': 'Test suite URL is required'
+            }), 400
+
+        # Handle different source types
+        test_path = None
+        cleanup_needed = False
+
+        if test_type == 'local':
+            # Use local path directly
+            test_path = test_suite_url
+            if not Path(test_path).exists():
+                return jsonify({
+                    'success': False,
+                    'error': f'Local path not found: {test_path}'
+                }), 404
+
+        elif test_type in ['github', 'git']:
+            # Clone the repository to a temporary directory
+            temp_dir = tempfile.mkdtemp(prefix='test_suite_')
+            cleanup_needed = True
+
+            try:
+                # Convert GitHub URL to git URL if needed
+                git_url = test_suite_url
+                if test_type == 'github' and 'github.com' in test_suite_url:
+                    if not test_suite_url.endswith('.git'):
+                        # Convert https://github.com/user/repo to git URL
+                        if '/tree/' in test_suite_url:
+                            # Handle branch URLs
+                            git_url = test_suite_url.split('/tree/')[0] + '.git'
+                        else:
+                            git_url = test_suite_url.rstrip('/') + '.git'
+
+                print(f"Cloning repository from {git_url} to {temp_dir}")
+
+                # Clone the repository
+                result = subprocess.run(
+                    ['git', 'clone', '--depth', '1', git_url, temp_dir],
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minute timeout
+                )
+
+                if result.returncode != 0:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Failed to clone repository: {result.stderr}'
+                    }), 500
+
+                test_path = temp_dir
+
+            except subprocess.TimeoutExpired:
+                if cleanup_needed and Path(temp_dir).exists():
+                    shutil.rmtree(temp_dir)
+                return jsonify({
+                    'success': False,
+                    'error': 'Repository clone timed out (5 minutes)'
+                }), 500
+            except Exception as e:
+                if cleanup_needed and Path(temp_dir).exists():
+                    shutil.rmtree(temp_dir)
+                return jsonify({
+                    'success': False,
+                    'error': f'Error cloning repository: {str(e)}'
+                }), 500
+
+        # Run tests from the specified path
+        try:
+            result = agent.run_tests(
+                path=test_path,
+                pattern=test_pattern
+            )
+
+            response_data = {
+                'success': True,
+                'passed': result.passed,
+                'failed': result.failed,
+                'skipped': result.skipped,
+                'errors': result.errors,
+                'total': result.total,
+                'duration': result.duration,
+                'coverage': result.coverage,
+                'success_rate': result.success_rate(),
+                'stdout': result.stdout,
+                'stderr': result.stderr,
+                'failures': result.failures
+            }
+
+            return jsonify(response_data)
+
+        finally:
+            # Clean up cloned repository
+            if cleanup_needed and test_path and Path(test_path).exists():
+                try:
+                    shutil.rmtree(test_path)
+                    print(f"Cleaned up temporary directory: {test_path}")
+                except Exception as e:
+                    print(f"Warning: Failed to clean up {test_path}: {e}")
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }), 500
 
 

@@ -95,15 +95,35 @@ Then open your browser to `http://localhost:5000`
 
 ### Available Buttons
 
-- **🚀 Run Tests** - Execute all tests and see detailed results with coverage
+- **🚀 Run Tests** - Execute tests from any source (local, GitHub, or Git URL)
+  - Input a test suite URL or local path
+  - Automatically clones and runs tests from repositories
+  - Generates comprehensive reports with coverage analysis
 - **🎓 Learn from Tests** - Analyze existing passing tests to extract patterns
 - **✨ Generate Tests** - Create intelligent test suggestions for untested code
 - **🔍 Analyze Gaps** - Identify functions without test coverage
+- **⚡ Run Generated Tests** - Generate, write, and execute test cases in one click
+
+### Test Suite Sources Supported
+
+The "Run Tests" button supports multiple sources:
+
+1. **Local Path**: Run tests from a local directory
+   - Example: `/home/user/my-project/tests`
+
+2. **GitHub Repository**: Automatically clone and run tests from GitHub
+   - Example: `https://github.com/username/repository`
+   - Supports branch URLs: `https://github.com/username/repository/tree/branch-name`
+
+3. **Git URL**: Clone from any Git repository
+   - Example: `https://gitlab.com/username/repository.git`
 
 The web interface provides:
 - Real-time test execution and results
 - Visual statistics and charts
 - Easy access to generated reports
+- Automatic repository cloning and cleanup
+- Test pattern filtering support
 - One-click operations for all testing agent features
 
 ## Configuration
