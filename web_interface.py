@@ -13,17 +13,27 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 from src.agent import TestingAgent
+from src.training_service import TrainingService
 
 app = Flask(__name__)
 
 # Global testing agent instance
 agent = TestingAgent()
 
+# Global training service instance
+training_service = TrainingService()
+
 
 @app.route('/')
 def index():
     """Main page with buttons."""
     return render_template('index.html')
+
+
+@app.route('/training')
+def training_page():
+    """Training plan page with nomination features."""
+    return render_template('training.html')
 
 
 @app.route('/run-tests', methods=['POST'])
@@ -430,20 +440,196 @@ def status():
         }), 500
 
 
+# Training Plan and Nomination Routes
+
+@app.route('/training-plans')
+def get_training_plans():
+    """Get all training plans with their areas of work."""
+    try:
+        plans = training_service.get_all_training_plans()
+        return jsonify({
+            'success': True,
+            'plans': [plan.to_dict() for plan in plans]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/training-plans/<plan_id>')
+def get_training_plan(plan_id):
+    """Get a specific training plan."""
+    try:
+        plan = training_service.get_training_plan(plan_id)
+        if not plan:
+            return jsonify({
+                'success': False,
+                'error': f'Training plan not found: {plan_id}'
+            }), 404
+        return jsonify({
+            'success': True,
+            'plan': plan.to_dict()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/employees')
+def get_employees():
+    """Get all employees for nomination dropdown."""
+    try:
+        employees = training_service.get_all_employees()
+        return jsonify({
+            'success': True,
+            'employees': [emp.to_dict() for emp in employees]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/nominate', methods=['POST'])
+def nominate_employee():
+    """Nominate an employee for training and send email notification."""
+    try:
+        data = request.json
+
+        training_plan_id = data.get('training_plan_id')
+        aow_id = data.get('aow_id')
+        employee_id = data.get('employee_id')
+        nominated_by = data.get('nominated_by', 'HR Admin')
+        priority = data.get('priority', 'medium')
+        notes = data.get('notes', '')
+
+        if not all([training_plan_id, aow_id, employee_id]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: training_plan_id, aow_id, employee_id'
+            }), 400
+
+        result = training_service.nominate_employee(
+            training_plan_id=training_plan_id,
+            aow_id=aow_id,
+            employee_id=employee_id,
+            nominated_by=nominated_by,
+            priority=priority,
+            notes=notes
+        )
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/nominations')
+def get_nominations():
+    """Get all nominations."""
+    try:
+        nominations = training_service.get_all_nominations()
+
+        # Enrich with employee and training info
+        enriched = []
+        for nom in nominations:
+            emp = training_service.get_employee(nom.employee_id)
+            plan = training_service.get_training_plan(nom.training_plan_id)
+            aow = training_service.get_aow(nom.training_plan_id, nom.aow_id)
+
+            nom_dict = nom.to_dict()
+            nom_dict['employee_name'] = emp.name if emp else 'Unknown'
+            nom_dict['training_plan_name'] = plan.name if plan else 'Unknown'
+            nom_dict['aow_name'] = aow.name if aow else 'Unknown'
+            enriched.append(nom_dict)
+
+        return jsonify({
+            'success': True,
+            'nominations': enriched
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/nominations/<nomination_id>/status', methods=['PUT'])
+def update_nomination_status(nomination_id):
+    """Update nomination status."""
+    try:
+        data = request.json
+        status = data.get('status')
+
+        if not status:
+            return jsonify({
+                'success': False,
+                'error': 'Status is required'
+            }), 400
+
+        result = training_service.update_nomination_status(nomination_id, status)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/training-summary')
+def get_training_summary():
+    """Get summary of training nominations."""
+    try:
+        summary = training_service.get_training_summary()
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     # Create reports directory if it doesn't exist
     Path('reports').mkdir(exist_ok=True)
 
     print("=" * 70)
-    print("🚀 Testing Agent Web Interface")
+    print("Testing Agent Web Interface")
     print("=" * 70)
-    print("\n📍 Access the web interface at: http://localhost:5000")
-    print("\n🔘 Available buttons:")
-    print("   • Run Tests - Execute all tests and see results")
-    print("   • Learn from Tests - Analyze existing passing tests")
-    print("   • Generate Tests - Create new test suggestions")
-    print("   • Analyze Coverage Gaps - Find untested code")
-    print("   • Run Generated Tests - Execute generated test cases")
+    print("\nAccess the web interface at: http://localhost:5000")
+    print("\nAvailable Pages:")
+    print("   - Home (/) - Testing Agent dashboard")
+    print("   - Training (/training) - Training Plan Management")
+    print("\nTesting Features:")
+    print("   - Run Tests - Execute all tests and see results")
+    print("   - Learn from Tests - Analyze existing passing tests")
+    print("   - Generate Tests - Create new test suggestions")
+    print("   - Analyze Coverage Gaps - Find untested code")
+    print("   - Run Generated Tests - Execute generated test cases")
+    print("\nTraining Features:")
+    print("   - View Training Plans with Areas of Work")
+    print("   - Nominate Employees for Training")
+    print("   - Send Email Notifications")
+    print("   - Track Nomination Status")
     print("\n" + "=" * 70 + "\n")
 
     app.run(debug=True, host='0.0.0.0', port=5000)
