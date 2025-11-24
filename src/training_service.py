@@ -131,7 +131,9 @@ class TrainingService:
                         skills=["Python syntax", "Data types", "Control flow", "Functions"],
                         duration_hours=16,
                         resources=["Python Documentation", "Practice Exercises"],
-                        prerequisites=[]
+                        prerequisites=[],
+                        created_by="HR Admin",
+                        reviewed_by="spoc001"
                     ),
                     AreaOfWork(
                         id="aow002",
@@ -140,7 +142,9 @@ class TrainingService:
                         skills=["Classes", "Inheritance", "Polymorphism", "Design Patterns"],
                         duration_hours=20,
                         resources=["OOP Guide", "Design Patterns Book"],
-                        prerequisites=["Python Basics"]
+                        prerequisites=["Python Basics"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc002"
                     ),
                     AreaOfWork(
                         id="aow003",
@@ -149,7 +153,9 @@ class TrainingService:
                         skills=["Unit Testing", "Pytest", "Mocking", "TDD"],
                         duration_hours=12,
                         resources=["Pytest Documentation", "TDD Workshop"],
-                        prerequisites=["Python Basics", "Object-Oriented Programming"]
+                        prerequisites=["Python Basics", "Object-Oriented Programming"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc003"
                     ),
                 ]
             ),
@@ -166,7 +172,9 @@ class TrainingService:
                         skills=["Git", "Branching", "Merging", "Collaboration"],
                         duration_hours=8,
                         resources=["Git Pro Book", "Interactive Tutorial"],
-                        prerequisites=[]
+                        prerequisites=[],
+                        created_by="HR Admin",
+                        reviewed_by="spoc001"
                     ),
                     AreaOfWork(
                         id="aow005",
@@ -175,7 +183,9 @@ class TrainingService:
                         skills=["Docker", "Containers", "Dockerfile", "Docker Compose"],
                         duration_hours=16,
                         resources=["Docker Documentation", "Hands-on Labs"],
-                        prerequisites=["Version Control with Git"]
+                        prerequisites=["Version Control with Git"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc002"
                     ),
                     AreaOfWork(
                         id="aow006",
@@ -184,7 +194,9 @@ class TrainingService:
                         skills=["GitHub Actions", "CI/CD", "Automation", "Deployment"],
                         duration_hours=12,
                         resources=["GitHub Actions Docs", "Pipeline Templates"],
-                        prerequisites=["Version Control with Git", "Docker Containerization"]
+                        prerequisites=["Version Control with Git", "Docker Containerization"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc003"
                     ),
                 ]
             ),
@@ -201,7 +213,9 @@ class TrainingService:
                         skills=["IaaS", "PaaS", "SaaS", "Cloud Concepts"],
                         duration_hours=8,
                         resources=["Cloud Computing Guide", "AWS/Azure Basics"],
-                        prerequisites=[]
+                        prerequisites=[],
+                        created_by="HR Admin",
+                        reviewed_by="spoc001"
                     ),
                     AreaOfWork(
                         id="aow008",
@@ -210,7 +224,9 @@ class TrainingService:
                         skills=["Terraform", "CloudFormation", "IaC", "Automation"],
                         duration_hours=20,
                         resources=["Terraform Docs", "IaC Best Practices"],
-                        prerequisites=["Cloud Computing Fundamentals"]
+                        prerequisites=["Cloud Computing Fundamentals"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc002"
                     ),
                     AreaOfWork(
                         id="aow009",
@@ -219,7 +235,9 @@ class TrainingService:
                         skills=["Kubernetes", "Pods", "Services", "Deployments"],
                         duration_hours=24,
                         resources=["Kubernetes Docs", "K8s Labs"],
-                        prerequisites=["Cloud Computing Fundamentals", "Docker Containerization"]
+                        prerequisites=["Cloud Computing Fundamentals", "Docker Containerization"],
+                        created_by="HR Admin",
+                        reviewed_by="spoc003"
                     ),
                 ]
             ),
@@ -258,6 +276,42 @@ class TrainingService:
                 if aow.id == aow_id:
                     return aow
         return None
+
+    def update_aow_reviewer(
+        self,
+        plan_id: str,
+        aow_id: str,
+        reviewer_id: str
+    ) -> dict:
+        """Update the reviewer (Technical SPOC) for an Area of Work."""
+        plan = self.training_plans.get(plan_id)
+        if not plan:
+            return {
+                'success': False,
+                'error': f'Training plan not found: {plan_id}'
+            }
+
+        aow = self.get_aow(plan_id, aow_id)
+        if not aow:
+            return {
+                'success': False,
+                'error': f'Area of Work not found: {aow_id}'
+            }
+
+        reviewer = self.employees.get(reviewer_id)
+        if not reviewer:
+            return {
+                'success': False,
+                'error': f'Reviewer not found: {reviewer_id}'
+            }
+
+        aow.reviewed_by = reviewer_id
+
+        return {
+            'success': True,
+            'aow': aow.to_dict(),
+            'message': f'Reviewer {reviewer.name} assigned to {aow.name}'
+        }
 
     # Nomination Workflow
     def nominate_employee(

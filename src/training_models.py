@@ -64,6 +64,8 @@ class AreaOfWork:
     duration_hours: int
     resources: List[str] = field(default_factory=list)
     prerequisites: List[str] = field(default_factory=list)
+    created_by: Optional[str] = None  # Resourcing team member who created
+    reviewed_by: Optional[str] = None  # Technical SPOC who reviews
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -74,7 +76,9 @@ class AreaOfWork:
             'skills': self.skills,
             'duration_hours': self.duration_hours,
             'resources': self.resources,
-            'prerequisites': self.prerequisites
+            'prerequisites': self.prerequisites,
+            'created_by': self.created_by,
+            'reviewed_by': self.reviewed_by
         }
 
 

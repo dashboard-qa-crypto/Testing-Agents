@@ -479,6 +479,37 @@ def get_training_plan(plan_id):
         }), 500
 
 
+@app.route('/training-plans/<plan_id>/aow/<aow_id>/reviewer', methods=['PUT'])
+def update_aow_reviewer(plan_id, aow_id):
+    """Update the reviewer (Technical SPOC) for an Area of Work."""
+    try:
+        data = request.json
+        reviewer_id = data.get('reviewer_id')
+
+        if not reviewer_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required field: reviewer_id'
+            }), 400
+
+        result = training_service.update_aow_reviewer(
+            plan_id=plan_id,
+            aow_id=aow_id,
+            reviewer_id=reviewer_id
+        )
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/employees')
 def get_employees():
     """Get all employees for nomination dropdown."""

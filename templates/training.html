@@ -801,6 +801,10 @@
         }
 
         function renderAowItem(planId, aow) {
+            const reviewerName = aow.reviewed_by ?
+                (technicalSpocs.find(s => s.id === aow.reviewed_by)?.name || aow.reviewed_by) :
+                'Not assigned';
+
             return `
                 <div class="aow-item">
                     <div class="aow-header">
@@ -830,6 +834,21 @@
                             <div class="skills-list">
                                 ${aow.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
                             </div>
+                        </div>
+                        <div class="detail-item">
+                            <label>Created By</label>
+                            <span>${aow.created_by || 'Not specified'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Reviewed By</label>
+                            <select class="inline-select" onchange="updateAowReviewer('${planId}', '${aow.id}', this.value)">
+                                <option value="">Select SPOC...</option>
+                                ${technicalSpocs.map(spoc => `
+                                    <option value="${spoc.id}" ${aow.reviewed_by === spoc.id ? 'selected' : ''}>
+                                        ${spoc.name}
+                                    </option>
+                                `).join('')}
+                            </select>
                         </div>
                         ${aow.prerequisites.length > 0 ? `
                         <div class="detail-item">
@@ -958,6 +977,29 @@
                     loadData();
                 } else {
                     showToast(data.error || 'Failed to update status', 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function updateAowReviewer(planId, aowId, reviewerId) {
+            if (!reviewerId) return;
+
+            try {
+                const response = await fetch(`/training-plans/${planId}/aow/${aowId}/reviewer`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reviewer_id: reviewerId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadData();
+                } else {
+                    showToast(data.error || 'Failed to update reviewer', 'error');
                 }
             } catch (error) {
                 showToast('Error: ' + error.message, 'error');
