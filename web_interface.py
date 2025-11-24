@@ -592,6 +592,76 @@ def update_nomination_status(nomination_id):
         }), 500
 
 
+@app.route('/technical-spocs')
+def get_technical_spocs():
+    """Get all Technical SPOCs for reviewer dropdown."""
+    try:
+        spocs = training_service.get_technical_spocs()
+        return jsonify({
+            'success': True,
+            'spocs': [spoc.to_dict() for spoc in spocs]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/nominations/<nomination_id>/reviewer', methods=['PUT'])
+def assign_reviewer(nomination_id):
+    """Assign a Technical SPOC as reviewer."""
+    try:
+        data = request.json
+        reviewer_id = data.get('reviewer_id')
+
+        if not reviewer_id:
+            return jsonify({
+                'success': False,
+                'error': 'Reviewer ID is required'
+            }), 400
+
+        result = training_service.assign_reviewer(nomination_id, reviewer_id)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/nominations/<nomination_id>/training-status', methods=['PUT'])
+def update_training_status(nomination_id):
+    """Update training status for a nomination."""
+    try:
+        data = request.json
+        training_status = data.get('training_status')
+
+        if not training_status:
+            return jsonify({
+                'success': False,
+                'error': 'Training status is required'
+            }), 400
+
+        result = training_service.update_training_status(nomination_id, training_status)
+
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/training-summary')
 def get_training_summary():
     """Get summary of training nominations."""

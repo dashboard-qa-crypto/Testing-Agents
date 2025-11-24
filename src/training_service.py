@@ -8,7 +8,7 @@ from typing import Optional
 
 from src.training_models import (
     Employee, TrainingPlan, AreaOfWork, Nomination,
-    NominationStatus, TrainingPriority
+    NominationStatus, TrainingPriority, TrainingStatus
 )
 from src.notification_service import NotificationService
 
@@ -88,6 +88,28 @@ class TrainingService:
                 email="lisa.anderson@company.com",
                 department="Design",
                 role="UX Designer"
+            ),
+            # Technical SPOCs for reviewing
+            Employee(
+                id="spoc001",
+                name="Alex Kumar",
+                email="alex.kumar@company.com",
+                department="Engineering",
+                role="Technical SPOC"
+            ),
+            Employee(
+                id="spoc002",
+                name="Maria Garcia",
+                email="maria.garcia@company.com",
+                department="Engineering",
+                role="Technical SPOC"
+            ),
+            Employee(
+                id="spoc003",
+                name="James Park",
+                email="james.park@company.com",
+                department="Architecture",
+                role="Technical SPOC"
             ),
         ]
 
@@ -298,7 +320,9 @@ class TrainingService:
             employee_id=employee_id,
             nominated_by=nominated_by,
             priority=priority_enum,
-            notes=notes
+            notes=notes,
+            training_status=TrainingStatus.INITIATED,
+            initiated_at=datetime.now()
         )
 
         # Send notification
@@ -383,18 +407,95 @@ class TrainingService:
             'message': f'Nomination status updated to {status}'
         }
 
+    # Technical SPOC Management
+    def get_technical_spocs(self) -> list[Employee]:
+        """Get all Technical SPOCs for reviewer dropdown."""
+        return [e for e in self.employees.values() if e.role == "Technical SPOC"]
+
+    def assign_reviewer(
+        self,
+        nomination_id: str,
+        reviewer_id: str
+    ) -> dict:
+        """Assign a Technical SPOC as reviewer for a nomination."""
+        nomination = self.nominations.get(nomination_id)
+        if not nomination:
+            return {
+                'success': False,
+                'error': f'Nomination not found: {nomination_id}'
+            }
+
+        reviewer = self.employees.get(reviewer_id)
+        if not reviewer:
+            return {
+                'success': False,
+                'error': f'Reviewer not found: {reviewer_id}'
+            }
+
+        nomination.reviewed_by = reviewer_id
+        nomination.reviewed_at = datetime.now()
+
+        return {
+            'success': True,
+            'nomination': nomination.to_dict(),
+            'message': f'Reviewer {reviewer.name} assigned successfully'
+        }
+
+    def update_training_status(
+        self,
+        nomination_id: str,
+        training_status: str
+    ) -> dict:
+        """Update training status for a nomination."""
+        nomination = self.nominations.get(nomination_id)
+        if not nomination:
+            return {
+                'success': False,
+                'error': f'Nomination not found: {nomination_id}'
+            }
+
+        try:
+            status_enum = TrainingStatus(training_status.lower())
+        except ValueError:
+            return {
+                'success': False,
+                'error': f'Invalid training status: {training_status}'
+            }
+
+        nomination.training_status = status_enum
+
+        # Update corresponding date
+        if training_status == 'initiated':
+            nomination.initiated_at = datetime.now()
+        elif training_status == 'in_progress':
+            nomination.in_progress_at = datetime.now()
+        elif training_status == 'completed':
+            nomination.completed_at = datetime.now()
+
+        return {
+            'success': True,
+            'nomination': nomination.to_dict(),
+            'message': f'Training status updated to {training_status}'
+        }
+
     # Dashboard/Summary Methods
     def get_training_summary(self) -> dict:
         """Get summary of training nominations."""
         total_nominations = len(self.nominations)
         status_counts = {}
+        training_status_counts = {}
+
         for nomination in self.nominations.values():
             status = nomination.status.value
             status_counts[status] = status_counts.get(status, 0) + 1
+
+            t_status = nomination.training_status.value
+            training_status_counts[t_status] = training_status_counts.get(t_status, 0) + 1
 
         return {
             'total_employees': len(self.employees),
             'total_training_plans': len(self.training_plans),
             'total_nominations': total_nominations,
-            'nominations_by_status': status_counts
+            'nominations_by_status': status_counts,
+            'nominations_by_training_status': training_status_counts
         }

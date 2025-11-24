@@ -25,6 +25,13 @@ class TrainingPriority(Enum):
     CRITICAL = "critical"
 
 
+class TrainingStatus(Enum):
+    """Status of training progress."""
+    INITIATED = "initiated"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
 @dataclass
 class Employee:
     """Employee data model."""
@@ -108,11 +115,16 @@ class Nomination:
     training_plan_id: str
     aow_id: str
     employee_id: str
-    nominated_by: str
+    nominated_by: str  # Created by (Resourcing team)
     status: NominationStatus = NominationStatus.PENDING
     priority: TrainingPriority = TrainingPriority.MEDIUM
+    training_status: TrainingStatus = TrainingStatus.INITIATED
+    reviewed_by: Optional[str] = None  # Technical SPOC
     nominated_at: datetime = field(default_factory=datetime.now)
     notified_at: Optional[datetime] = None
+    initiated_at: Optional[datetime] = None
+    in_progress_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     notes: str = ""
 
@@ -126,8 +138,13 @@ class Nomination:
             'nominated_by': self.nominated_by,
             'status': self.status.value,
             'priority': self.priority.value,
+            'training_status': self.training_status.value,
+            'reviewed_by': self.reviewed_by,
             'nominated_at': self.nominated_at.isoformat(),
             'notified_at': self.notified_at.isoformat() if self.notified_at else None,
+            'initiated_at': self.initiated_at.isoformat() if self.initiated_at else None,
+            'in_progress_at': self.in_progress_at.isoformat() if self.in_progress_at else None,
+            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'notes': self.notes
         }

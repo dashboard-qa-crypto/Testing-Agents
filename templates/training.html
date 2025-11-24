@@ -469,6 +469,52 @@
             color: white;
         }
 
+        /* Inline Select Dropdowns */
+        .inline-select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.85em;
+            background: white;
+            cursor: pointer;
+            min-width: 130px;
+        }
+
+        .inline-select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .inline-select.training-status-initiated {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .inline-select.training-status-in_progress {
+            background: #cce5ff;
+            border-color: #007bff;
+        }
+
+        .inline-select.training-status-completed {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        /* Dates Cell */
+        .dates-cell {
+            font-size: 0.8em;
+            line-height: 1.6;
+        }
+
+        .dates-cell small {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .dates-cell div {
+            white-space: nowrap;
+        }
+
         /* Toast Notifications */
         .toast-container {
             position: fixed;
@@ -667,6 +713,7 @@
         // Global data
         let employees = [];
         let trainingPlans = [];
+        let technicalSpocs = [];
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -676,17 +723,19 @@
         async function loadData() {
             try {
                 // Load all data in parallel
-                const [plansRes, employeesRes, summaryRes, nominationsRes] = await Promise.all([
+                const [plansRes, employeesRes, summaryRes, nominationsRes, spocsRes] = await Promise.all([
                     fetch('/training-plans'),
                     fetch('/employees'),
                     fetch('/training-summary'),
-                    fetch('/nominations')
+                    fetch('/nominations'),
+                    fetch('/technical-spocs')
                 ]);
 
                 const plansData = await plansRes.json();
                 const employeesData = await employeesRes.json();
                 const summaryData = await summaryRes.json();
                 const nominationsData = await nominationsRes.json();
+                const spocsData = await spocsRes.json();
 
                 if (plansData.success) {
                     trainingPlans = plansData.plans;
@@ -696,6 +745,10 @@
                 if (employeesData.success) {
                     employees = employeesData.employees;
                     populateEmployeeDropdown(employeesData.employees);
+                }
+
+                if (spocsData.success) {
+                    technicalSpocs = spocsData.spocs;
                 }
 
                 if (summaryData.success) {
@@ -819,27 +872,96 @@
                     <thead>
                         <tr>
                             <th>Employee</th>
-                            <th>Training</th>
                             <th>Area of Work</th>
+                            <th>Created By</th>
+                            <th>Reviewed By</th>
+                            <th>Training Status</th>
                             <th>Priority</th>
-                            <th>Status</th>
-                            <th>Nominated</th>
+                            <th>Action Dates</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${nominations.map(nom => `
                             <tr>
-                                <td>${nom.employee_name}</td>
-                                <td>${nom.training_plan_name}</td>
+                                <td>
+                                    <strong>${nom.employee_name}</strong>
+                                    <br><small style="color: #888;">${nom.training_plan_name}</small>
+                                </td>
                                 <td>${nom.aow_name}</td>
+                                <td>${nom.nominated_by}</td>
+                                <td>
+                                    <select class="inline-select" onchange="updateReviewer('${nom.id}', this.value)">
+                                        <option value="">Select SPOC...</option>
+                                        ${technicalSpocs.map(spoc => `
+                                            <option value="${spoc.id}" ${nom.reviewed_by === spoc.id ? 'selected' : ''}>
+                                                ${spoc.name}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="inline-select training-status-${nom.training_status}" onchange="updateTrainingStatus('${nom.id}', this.value)">
+                                        <option value="initiated" ${nom.training_status === 'initiated' ? 'selected' : ''}>Initiated</option>
+                                        <option value="in_progress" ${nom.training_status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                                        <option value="completed" ${nom.training_status === 'completed' ? 'selected' : ''}>Completed</option>
+                                    </select>
+                                </td>
                                 <td><span class="priority-badge priority-${nom.priority}">${nom.priority}</span></td>
-                                <td><span class="status-badge status-${nom.status}">${nom.status}</span></td>
-                                <td>${formatDate(nom.nominated_at)}</td>
+                                <td class="dates-cell">
+                                    ${nom.initiated_at ? `<div><small>Initiated:</small> ${formatDate(nom.initiated_at)}</div>` : ''}
+                                    ${nom.in_progress_at ? `<div><small>In Progress:</small> ${formatDate(nom.in_progress_at)}</div>` : ''}
+                                    ${nom.reviewed_at ? `<div><small>Reviewed:</small> ${formatDate(nom.reviewed_at)}</div>` : ''}
+                                    ${nom.completed_at ? `<div><small>Completed:</small> ${formatDate(nom.completed_at)}</div>` : ''}
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
             `;
+        }
+
+        async function updateReviewer(nominationId, reviewerId) {
+            if (!reviewerId) return;
+
+            try {
+                const response = await fetch(`/nominations/${nominationId}/reviewer`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reviewer_id: reviewerId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadData();
+                } else {
+                    showToast(data.error || 'Failed to update reviewer', 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function updateTrainingStatus(nominationId, status) {
+            try {
+                const response = await fetch(`/nominations/${nominationId}/training-status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ training_status: status })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadData();
+                } else {
+                    showToast(data.error || 'Failed to update status', 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
         }
 
         function formatDate(dateString) {
